@@ -77,6 +77,12 @@ ln -s /opt/m17/m17-gateway/dashboard.log /opt/m17/rpi-dashboard/files/dashboard.
 ln -s /etc/m17-gateway.ini /opt/m17/rpi-dashboard/files/m17-gateway.ini
 ```
 
+The APRS page shows m17-gateway's APRS traffic log, when its `[APRS] Log` is set (default `/opt/m17/m17-gateway/aprs.log`):
+
+```bash
+ln -s /opt/m17/m17-gateway/aprs.log /opt/m17/rpi-dashboard/files/aprs.log
+```
+
 Add the user `www-data` to the group `m17-gateway-control`:
 
 ```bash

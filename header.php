@@ -36,6 +36,7 @@ $page = $page ?? '';
     <a href="config_gateway.php" class="<?php echo ($page=='config_gw')?'active':'';?>"><span class="icon">⚙️</span>Gateway</a>
     <a href="config_dashboard.php" class="<?php echo ($page=='config_dash')?'active':'';?>"><span class="icon">🧩</span>Settings</a>
     <a href="messages.php" class="<?php echo ($page=='messages')?'active':'';?>"><span class="icon">💬</span>Messaging</a>
+    <a href="aprs.php" class="<?php echo ($page=='aprs')?'active':'';?>"><span class="icon">📡</span>APRS</a>
     <a href="help.php" class="<?php echo ($page=='help')?'active':'';?>"><span class="icon">❓</span>Help</a>
     <?php if (function_exists('isAdmin') && isAdmin()): ?>
     <a href="login.php?logout=1"><span class="icon">🔒</span>Log out</a>
