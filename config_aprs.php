@@ -18,9 +18,9 @@ $message = '';
 
 // Settings this page edits, by kind
 $checks = ['Enabled' => false, 'RFtoIS' => true, 'IStoRF' => false, 'Relay' => false, 'CourtesyPosition' => true, 'HoldVoice' => true];
-$durations = ['MinTxGap' => ['s', 3], 'MaxQueueAge' => ['s', 60], 'HeardWindow' => ['m', 60], 'BeaconInterval' => ['m', 30]];
+$durations = ['MinTxGap' => ['s', 3], 'MaxQueueAge' => ['s', 60], 'HeardWindow' => ['m', 60], 'BeaconInterval' => ['s', 600]];
 $numbers = ['RateLimit' => 6, 'RateBurst' => 3];
-$texts = ['Callsign' => '', 'Server' => 'rotate.aprs2.net:14580', 'Comment' => '', 'Symbol' => 'I&', 'PathTag' => 'M17'];
+$texts = ['Callsign' => '', 'Server' => 'rotate.aprs2.net:14580', 'Comment' => '', 'Symbol' => 'M&', 'PathTag' => 'M17'];
 
 function isOn($v) { return in_array(strtolower(trim((string)$v)), ['1', 'true', 'yes', 'on'], true); }
 
@@ -39,6 +39,9 @@ if ($lines !== false && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $v = trim($_POST[$k] ?? '');
         if (!is_numeric($v) || $v < 0) { $errors[] = "$k must be a number."; continue; }
         $set[$k] = (0 + $v) . $unit;
+    }
+    if (isset($set['BeaconInterval']) && $set['BeaconInterval'] !== '0s' && (0 + $_POST['BeaconInterval']) < 300) {
+        $errors[] = 'Beacon every must be 0, or at least 300 seconds (5 minutes).';
     }
     foreach ($numbers as $k => $d) {
         $v = trim($_POST[$k] ?? '');
@@ -179,7 +182,7 @@ include 'header.php';
   <div class="form-grid-2col">
     <div class="form-field"><label>Latitude</label><input class="input" id="Latitude" name="Latitude" value="<?= h($val('Latitude')) ?>"></div>
     <div class="form-field"><label>Longitude</label><input class="input" id="Longitude" name="Longitude" value="<?= h($val('Longitude')) ?>"></div>
-    <div class="form-field"><label>Beacon every (min, 0 for never)</label><input class="input" name="BeaconInterval" value="<?= h(durationIn($val('BeaconInterval'), 'm', 30)) ?>"></div>
+    <div class="form-field"><label>Beacon every (s, 0 for never, at least 300)</label><input class="input" name="BeaconInterval" value="<?= h(durationIn($val('BeaconInterval'), 's', 600)) ?>"></div>
     <div class="form-field"><label>Blur the position</label>
       <select class="input" name="Ambiguity">
         <?php foreach (['exact', 'to about 200 m', 'to about 2 km', 'to about 20 km', 'to about 110 km'] as $i => $label): ?>
