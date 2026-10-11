@@ -5,6 +5,8 @@ $page = 'aprs'; include 'header.php';
 <h2>APRS</h2>
 <p class="aprs-note">m17-gateway's APRS gate: APRS carried in M17 packet mode, between RF and APRS-IS. <a href="config_aprs.php">APRS settings</a></p>
 
+<div id="aprs-warning" class="aprs-warning" hidden></div>
+
 <div class="cards" id="aprs-status" hidden>
   <section class="card"><h2>APRS-IS</h2>
     <p>Connection <strong id="st-conn"></strong></p>
@@ -18,6 +20,7 @@ $page = 'aprs'; include 'header.php';
     <p>From APRS-IS <strong id="st-is"></strong></p>
     <p>Sent to RF <strong id="st-tx"></strong></p>
     <p>Waiting to send <strong id="st-queue"></strong></p>
+    <p>Last 15 min to RF <strong id="st-recent"></strong></p>
   </section>
 </div>
 <p id="aprs-unavailable" class="aprs-note" hidden>No status from the gateway. Set <code>Status</code> under <code>[APRS]</code> in the gateway configuration, and link it as <code>files/aprs-status.json</code>.</p>
@@ -27,7 +30,7 @@ $page = 'aprs'; include 'header.php';
     <table class="aprs-small" id="st-heard"><thead><tr><th>APRS</th><th>M17</th><th>CAN</th><th>Last heard</th></tr></thead><tbody></tbody></table>
   </section>
   <section class="card"><h2>Watch rules</h2>
-    <table class="aprs-small" id="st-watches"><thead><tr><th>Rule</th><th>Then</th><th>Until</th></tr></thead><tbody></tbody></table>
+    <table class="aprs-small" id="st-watches"><thead><tr><th>Rule</th><th>Then</th><th>Until</th><th>Last 15 min</th></tr></thead><tbody></tbody></table>
     <p class="aprs-note">Filter <code id="st-filter"></code></p>
   </section>
 </div>
@@ -60,6 +63,8 @@ $page = 'aprs'; include 'header.php';
 #aprs td.aprs-watch { color:#60a5fa; }
 #aprs td.aprs-skip, .aprs-skip { color:var(--text-muted); }
 .aprs-bad { color:#ef4444; }
+.aprs-warning { border:1px solid #f97316; border-radius:12px; padding:10px 14px; margin:12px 0; }
+.aprs-warning p { margin:4px 0; }
 table.aprs-small { width:100%; font-size:0.9rem; }
 table.aprs-small td, table.aprs-small th { padding:4px 6px; }
 </style>
@@ -103,7 +108,10 @@ function updateStatus() {
     const ok = s && s.available;
     $('#aprs-status, #aprs-lists').prop('hidden', !ok);
     $('#aprs-unavailable').prop('hidden', !!ok);
-    if (!ok) return;
+    if (!ok) {
+      $('#aprs-warning').prop('hidden', true);
+      return;
+    }
     const c = s.counts || {};
     if (s.stale) {
       aprsSet('st-conn', 'no status for ' + aprsFor(s.age) + ': is the gateway running?', 'aprs-bad');
@@ -129,15 +137,34 @@ function updateStatus() {
       heard += `<tr><td>${aprsCall(h.call)}</td><td>${aprsEsc(h.m17)}</td><td>${aprsEsc(h.can)}</td><td>${aprsAgo(h.age)}</td></tr>`;
     });
     $('#st-heard tbody').html(heard || '<tr><td colspan="4" class="aprs-skip">Nobody yet</td></tr>');
+    const recent = s.recent || {};
+    aprsSet('st-recent', `sent ${recent.sent || 0} · dropped ${(recent.dropped || 0) + (recent.droppedAddressed || 0)} · replaced by newer ${recent.replaced || 0}`,
+            (recent.dropped || recent.droppedAddressed) ? 'aprs-warn' : '');
     let rules = '';
+    const warnings = [];
     (s.watches || []).forEach(w => {
       const what = w.kind === 'call' ? 'from or to ' + aprsCall(w.call)
                  : w.kind === 'area' ? `within ${aprsEsc(w.km)} km of ${aprsEsc(w.lat)}, ${aprsEsc(w.lon)}`
                  : `within ${aprsEsc(w.km)} km of the hotspot`;
       const until = w.until ? (w.active ? new Date(w.until).toLocaleString() : 'ended') : 'no end';
-      rules += `<tr class="${w.active ? '' : 'aprs-skip'}"><td>${what}</td><td>${w.toRF ? 'send to RF' : 'show here'}</td><td>${aprsEsc(until)}</td></tr>`;
+      const r = w.recent || {};
+      const last = w.toRF ? `${r.matched || 0} matched · ${r.sent || 0} sent · ${r.dropped || 0} dropped` : `${r.matched || 0} shown`;
+      rules += `<tr class="${w.active ? '' : 'aprs-skip'}"><td>${what}</td><td>${w.toRF ? 'send to RF' : 'show here'}</td><td>${aprsEsc(until)}</td>` +
+               `<td class="${r.dropped ? 'aprs-warn' : ''}">${last}</td></tr>`;
+      if (w.toRF && r.dropped) {
+        warnings.push(`"${what}" brought ${r.matched || 0} packets in the last ${recent.minutes || 15} minutes; ${r.sent || 0} went out and ${r.dropped} were dropped, more than the channel's budget allows. ` +
+                      `<a href="config_aprs.php">Narrow it, or switch it to show here</a>.`);
+      }
     });
-    $('#st-watches tbody').html(rules || '<tr><td colspan="3" class="aprs-skip">None. <a href="config_aprs.php">Add one</a></td></tr>');
+    $('#st-watches tbody').html(rules || '<tr><td colspan="4" class="aprs-skip">None. <a href="config_aprs.php">Add one</a></td></tr>');
+    if (recent.droppedAddressed) {
+      warnings.unshift(`<span class="aprs-bad">${recent.droppedAddressed} acks or messages for stations here were dropped in the last ${recent.minutes || 15} minutes: the channel was too busy for them.</span>`);
+    }
+    const ruled = (s.watches || []).reduce((n, w) => n + ((w.toRF && w.recent && w.recent.dropped) || 0), 0);
+    if ((recent.dropped || 0) > ruled) {
+      warnings.push(`${recent.dropped - ruled} other packets for RF were dropped in the last ${recent.minutes || 15} minutes.`);
+    }
+    $('#aprs-warning').html(warnings.map(w => `<p>${w}</p>`).join('')).prop('hidden', warnings.length === 0);
     $('#st-filter').text(s.filter || '');
   });
 }
