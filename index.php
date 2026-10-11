@@ -23,6 +23,8 @@ $power = is_numeric($power) ? $power . ' dBm' : 'N/A';
 <p>Gateway <strong id="gw_status" class="status-good"></strong></p>
 <p>Reflector <strong id="gw_ref"></strong></p>
 <p>Module <strong id="gw_mod"></strong></p>
+<p id="gw_home_row" hidden>Home reflector <strong id="gw_home"></strong></p>
+<p id="gw_revert_row" hidden>Back home in <strong id="gw_revert"></strong></p>
 <p>Radio state <strong id="gw_radio" class="status-good"></strong></p>
 </section></div>
 <h2>Recent activity</h2>
@@ -36,8 +38,10 @@ function updateStatus(){fetch('get_status.php').then(r=>r.json()).then(d=>{
 if(!d)return;
 let g=document.getElementById('gw_status');
 let r=document.getElementById('gw_radio');
+if(!linkStatus){
 document.getElementById('gw_ref').textContent=d.connected_ref||'-';
 document.getElementById('gw_mod').textContent=d.connected_mod||'-';
+}
 r.textContent=d.radio_status||'unknown';
 g.textContent=d.gateway_status||'unknown';
 g.className=(g.textContent.toLowerCase()==='running')?'status-good':'status-bad';
@@ -83,5 +87,34 @@ $('#lastheard tbody').html(rows);
 $(function(){updateStatus();updateDashboard();
 setInterval(updateStatus,2000);
 setInterval(updateDashboard,2000);});
+</script>
+<script>
+// m17-gateway's reflector link, which a radio can change over RF: the
+// gateway's own word on it, who changed it, and when it goes back home.
+var linkStatus = null;
+function showLink(){
+  const s = linkStatus;
+  document.getElementById('gw_home_row').hidden = !s;
+  document.getElementById('gw_revert_row').hidden = !s || !s.revertAt;
+  if (!s) return;
+  const at = (s.linked || '').split(' ');
+  document.getElementById('gw_ref').textContent = at[0] || 'unlinked';
+  document.getElementById('gw_mod').textContent = at[1] || '-';
+  const away = s.linked !== s.home;
+  document.getElementById('gw_home').textContent = (s.home || 'none') +
+    (away && s.linkedBy ? ' (changed by ' + s.linkedBy + ')' : '');
+  if (s.revertAt) {
+    const left = Math.max(0, Math.round((Date.parse(s.revertAt) - Date.now()) / 1000));
+    document.getElementById('gw_revert').textContent =
+      Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') + ' (anything received on RF resets it)';
+  }
+}
+function updateLink(){
+  fetch('get_link_status.php').then(r => r.json()).then(s => {
+    linkStatus = (s && s.available) ? s : null;
+    showLink();
+  }).catch(() => {});
+}
+$(function(){ updateLink(); setInterval(updateLink, 5000); setInterval(showLink, 1000); });
 </script>
 <?php include 'footer.php'; ?>
