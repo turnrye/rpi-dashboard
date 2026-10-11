@@ -17,7 +17,7 @@ $errors = [];
 $message = '';
 
 // Settings this page edits, by kind
-$checks = ['Enabled' => false, 'RFtoIS' => true, 'IStoRF' => false, 'Relay' => false, 'CourtesyPosition' => true];
+$checks = ['Enabled' => false, 'RFtoIS' => true, 'IStoRF' => false, 'Relay' => false, 'CourtesyPosition' => true, 'HoldVoice' => true];
 $durations = ['MinTxGap' => ['s', 3], 'MaxQueueAge' => ['s', 60], 'HeardWindow' => ['m', 60], 'BeaconInterval' => ['m', 30]];
 $numbers = ['RateLimit' => 6, 'RateBurst' => 3];
 $texts = ['Callsign' => '', 'Server' => 'rotate.aprs2.net:14580', 'Comment' => '', 'Symbol' => 'I&', 'PathTag' => 'M17'];
@@ -158,7 +158,8 @@ include 'header.php';
     <?php foreach ($checks as $k => $d): ?>
     <label class="form-field"><span><input type="checkbox" name="<?= h($k) ?>" <?= isOn($val($k, $d ? 'true' : 'false')) ? 'checked' : '' ?>>
       <?= h(['Enabled' => 'APRS gate on', 'RFtoIS' => 'Gate RF to APRS-IS', 'IStoRF' => 'Send APRS-IS messages to RF',
-             'Relay' => 'Relay messages between local stations (simplex)', 'CourtesyPosition' => 'Courtesy position after a message'][$k]) ?></span></label>
+             'Relay' => 'Relay messages between local stations (simplex)', 'CourtesyPosition' => 'Courtesy position after a message',
+             'HoldVoice' => 'Hold reflector voice while a packet goes out (about ½ s)'][$k]) ?></span></label>
     <?php endforeach; ?>
     <div class="form-field"><label>Callsign (AX.25, such as N0CALL-10)</label><input class="input" name="Callsign" value="<?= h($val('Callsign')) ?>"></div>
     <div class="form-field"><label>Passcode (blank keeps the current one; -1 receives only)</label><input class="input" type="password" name="Passcode" autocomplete="off" placeholder="<?= $val('Passcode', '-1') === '-1' ? '-1 (receive only)' : 'set' ?>"></div>
