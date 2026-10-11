@@ -20,7 +20,7 @@ $message = '';
 $checks = ['Enabled' => false, 'RFtoIS' => true, 'IStoRF' => false, 'Relay' => false, 'CourtesyPosition' => true];
 $durations = ['MinTxGap' => ['s', 3], 'MaxQueueAge' => ['s', 60], 'HeardWindow' => ['m', 60], 'BeaconInterval' => ['m', 30]];
 $numbers = ['RateLimit' => 6, 'RateBurst' => 3];
-$texts = ['Callsign' => '', 'Server' => 'rotate.aprs2.net:14580', 'Comment' => '', 'Symbol' => 'I&'];
+$texts = ['Callsign' => '', 'Server' => 'rotate.aprs2.net:14580', 'Comment' => '', 'Symbol' => 'I&', 'PathTag' => 'M17'];
 
 function isOn($v) { return in_array(strtolower(trim((string)$v)), ['1', 'true', 'yes', 'on'], true); }
 
@@ -58,6 +58,10 @@ if ($lines !== false && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (strlen($set['Symbol']) !== 2) $errors[] = 'The symbol is two characters: a table (or overlay) and a code, such as M&.';
     $set['Callsign'] = strtoupper($set['Callsign']);
+    $set['PathTag'] = strtoupper($set['PathTag']);
+    if (!preg_match('/^[A-Z0-9]{0,6}$/', $set['PathTag'])) {
+        $errors[] = 'The path tag is up to six letters and digits, such as M17, or empty for none.';
+    }
     if ($set['Callsign'] !== '' && !preg_match('/^[A-Z0-9]{1,6}(-([1-9]|1[0-5]))?$/', $set['Callsign'])) {
         $errors[] = 'The APRS callsign must be an AX.25 one, such as N0CALL-10.';
     }
@@ -159,6 +163,7 @@ include 'header.php';
     <div class="form-field"><label>Callsign (AX.25, such as N0CALL-10)</label><input class="input" name="Callsign" value="<?= h($val('Callsign')) ?>"></div>
     <div class="form-field"><label>Passcode (blank keeps the current one; -1 receives only)</label><input class="input" type="password" name="Passcode" autocomplete="off" placeholder="<?= $val('Passcode', '-1') === '-1' ? '-1 (receive only)' : 'set' ?>"></div>
     <div class="form-field"><label>Server</label><input class="input" name="Server" value="<?= h($val('Server', $texts['Server'])) ?>"></div>
+    <div class="form-field"><label>Path tag on packets gated from M17 (shows as "via M17*,qAR,..."; empty for none)</label><input class="input" name="PathTag" value="<?= h($val('PathTag', 'M17')) ?>"></div>
     <div class="form-field"><label>Quiet gap before each packet to RF (s)</label><input class="input" name="MinTxGap" value="<?= h(durationIn($val('MinTxGap'), 's', 3)) ?>"></div>
     <div class="form-field"><label>Packets to RF per minute</label><input class="input" name="RateLimit" value="<?= h($val('RateLimit', 6)) ?>"></div>
     <div class="form-field"><label>... in a burst</label><input class="input" name="RateBurst" value="<?= h($val('RateBurst', 3)) ?>"></div>
