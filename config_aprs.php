@@ -84,10 +84,21 @@ if ($lines !== false && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!preg_match('/^Watch\d+$/', $k)) continue;
         $w = aprsParseWatch($v);
         $ended = $w && $w['until'] && $w['until'] <= time();
-        if (!isset($_POST['remove'][$k]) && !$ended) $rules[] = $v;
+        if (!isset($_POST['remove'][$k]) && !$ended) {
+            // A rule's "then" can be changed in place
+            $want = $_POST['action'][$k] ?? '';
+            if ($w && in_array($want, ['rf', 'dashboard'], true) && ($want === 'rf') !== $w['toRF']) {
+                [$changed, $err] = aprsWatchValue($w['kind'], $w['call'] ?? '', $w['lat'] ?? '', $w['lon'] ?? '',
+                                                  $w['km'] ?? '', $want === 'rf', $w['until'] ?? 0);
+                if (!$err) $v = $changed;
+            }
+            $rules[] = $v;
+        }
         $del[] = $k;
     }
-    if (($_POST['add_kind'] ?? '') !== '') {
+    if (($_POST['add_kind'] ?? '') !== '' && !in_array($_POST['add_action'] ?? '', ['rf', 'dashboard'], true)) {
+        $errors[] = 'Choose whether the new rule sends what it finds to RF, or only shows it here.';
+    } else if (($_POST['add_kind'] ?? '') !== '') {
         $hours = (float)($_POST['add_hours'] ?? 0);
         [$rule, $err] = aprsWatchValue($_POST['add_kind'], $_POST['add_call'] ?? '', $_POST['add_lat'] ?? '',
                                        $_POST['add_lon'] ?? '', $_POST['add_km'] ?? '', ($_POST['add_action'] ?? '') === 'rf',
@@ -192,7 +203,10 @@ include 'header.php';
         <td><?= $w['kind'] === 'call' ? 'from or to ' . h($w['call'])
               : ($w['kind'] === 'area' ? 'within ' . h($w['km']) . ' km of ' . h($w['lat']) . ', ' . h($w['lon'])
               : 'within ' . h($w['km']) . ' km of the hotspot') ?></td>
-        <td><?= $w['toRF'] ? 'send to RF' : 'show here' ?></td>
+        <td><select class="input" name="action[<?= h($k) ?>]" style="width:auto">
+          <option value="dashboard" <?= $w['toRF'] ? '' : 'selected' ?>>show here</option>
+          <option value="rf" <?= $w['toRF'] ? 'selected' : '' ?>>send to RF</option>
+        </select></td>
         <td><?= $w['until'] ? h(date('Y-m-d H:i', $w['until'])) . ($w['until'] <= time() ? ' (ended)' : '') : 'no end' ?></td>
         <?php endif; ?>
       </tr>
@@ -215,7 +229,7 @@ include 'header.php';
     <div class="form-field rule-area"><label>Centre longitude</label><input class="input" id="add_lon" name="add_lon"></div>
     <div class="form-field rule-radius"><label>Radius (km)</label><input class="input" id="add_km" name="add_km" value="25"></div>
     <div class="form-field"><label>Then</label>
-      <select class="input" name="add_action"><option value="dashboard">show here</option><option value="rf">send to RF</option></select></div>
+      <select class="input" name="add_action"><option value="" selected>choose…</option><option value="dashboard">show here only</option><option value="rf">send to RF</option></select></div>
     <div class="form-field"><label>For</label>
       <select class="input" name="add_hours"><option value="1">1 hour</option><option value="4" selected>4 hours</option>
         <option value="24">1 day</option><option value="168">1 week</option><option value="0">no end</option></select></div>
