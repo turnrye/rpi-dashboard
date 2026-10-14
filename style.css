@@ -139,9 +139,9 @@ tbody tr:last-child td {
   border-bottom:none;
 }
 
-td.mer-good { color:#22c55e; font-weight:600; }
-td.mer-warn { color:#f97316; font-weight:600; }
-td.mer-bad  { color:#ef4444; font-weight:600; }
+td.mer-good, td.q-good { color:#22c55e; font-weight:600; }
+td.mer-warn, td.q-warn { color:#f97316; font-weight:600; }
+td.mer-bad,  td.q-bad  { color:#ef4444; font-weight:600; }
 
 /* Footer */
 

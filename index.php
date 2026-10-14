@@ -31,7 +31,9 @@ $power = is_numeric($power) ? $power . ' dBm' : 'N/A';
 <div class="table-card"><table id="lastheard">
 <thead><tr>
 <th>Time</th><th>Source</th><th>Destination</th><th>Interface</th>
-<th>Type</th><th>CAN</th><th title="Bit error rate before error correction">BER</th><th>Duration</th>
+<th>Type</th><th>CAN</th><th title="Bit error rate before error correction, between the radio and this hotspot (RF)">BER</th>
+<th title="Frames lost between the sending station and this hotspot (Internet). One station high and the rest clean: their connection. Every station high: this hotspot's connection or the reflector.">Loss</th>
+<th title="Frames this hotspot replaced with silence because they came late or not at all (Internet)">Filled</th><th>Duration</th>
 </tr></thead><tbody></tbody></table></div>
 <script>
 function updateStatus(){fetch('get_status.php').then(r=>r.json()).then(d=>{
@@ -70,6 +72,20 @@ if (iface === 'RF' && Number.isFinite(e.mer)) {
   ber = `<td class="${c}">${v.toFixed(1)} %</td>`;
 }
 
+// Internet streams: frames lost between the sender and this hotspot, and
+// frames the hotspot filled with silence because they came late or not at
+// all, as a share of the stream. Colors follow Pi-Star's loss column: clean
+// under 1%, noticeable up to 3%, broken above.
+let loss = '<td></td>', fill = '<td></td>';
+if (iface === 'Internet' && e.quality) {
+  const q = e.quality;
+  const c = v => v < 1 ? 'q-good' : v <= 3 ? 'q-warn' : 'q-bad';
+  const tip = esc(`${q.lost} of ${q.frames + q.lost} frames lost, ${q.filled} filled with silence, ` +
+    `longest gap ${q.maxGapMs} ms` + (q.silent ? `, ${q.silent} silence frames from the sender` : ''));
+  loss = `<td class="${c(q.loss)}" title="${tip}">${q.loss.toFixed(1)} %</td>`;
+  fill = `<td class="${c(q.fill)}" title="${tip}">${q.fill.toFixed(1)} %</td>`;
+}
+
 rows += `<tr${e.subtype === 'Packet' ? ' class="packet"' : ''}>
   <td>${esc(e.time)}</td>
   <td>${src}</td>
@@ -78,6 +94,8 @@ rows += `<tr${e.subtype === 'Packet' ? ' class="packet"' : ''}>
   <td>${esc(e.subtype)}</td>
   <td>${esc(e.can)}</td>
   ${ber}
+  ${loss}
+  ${fill}
   <td>${esc(e.duration)}</td>
 </tr>`;
 });
