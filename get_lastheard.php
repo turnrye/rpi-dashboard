@@ -11,6 +11,24 @@ $metric = ($config['unit_system'] === 'metric');
 // and reflector events are interleaved
 $entries = readLogEntries($config['gateway_log_file'], $smsOnly ? 2000 : max(100, $limit * 4));
 
+// How a reflector stream arrived, from m17-gateway's counts on Voice End:
+// frames lost before reaching the hotspot, and frames it filled with silence
+// because they came late or not at all, each as a share of the stream.
+function netQuality(array $e): array {
+    $frames = (int)$e['frames'];
+    $lost = (int)($e['lost'] ?? 0);
+    $filled = (int)($e['filled'] ?? 0);
+    return [
+        'frames' => $frames,
+        'lost' => $lost,
+        'loss' => $frames + $lost > 0 ? round(100 * $lost / ($frames + $lost), 1) : 0,
+        'filled' => $filled,
+        'fill' => $frames + $filled > 0 ? round(100 * $filled / ($frames + $filled), 1) : 0,
+        'silent' => (int)($e['silent'] ?? 0),
+        'maxGapMs' => (int)($e['maxGapMs'] ?? 0),
+    ];
+}
+
 $voiceStarts = [];
 $callsWithGnss = [];
 $out = [];
@@ -71,6 +89,10 @@ foreach ($entries as $e) {
         }
         $row['subtype'] = 'Voice';
         $row['gnss'] = isset($callsWithGnss[$src]);
+        // Gateways older than these counts log none
+        if ($row['type'] === 'Internet' && isset($e['frames'])) {
+            $row['quality'] = netQuality($e);
+        }
         $out[] = $row;
     }
 }
